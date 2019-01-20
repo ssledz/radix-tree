@@ -11,24 +11,24 @@ sealed trait RadixTree[+A] {
 
     case Branch(Nil) => Branch(List(Edge(key, Leaf(value))))
 
-    case Branch(xs) => {
+    case Branch(rootEdges) => {
 
-      val edge = find(xs)(e => commonPrefix(key, e.label).map((e, _)))
+      val edge = find(rootEdges)(e => commonPrefix(key, e.label).map((e, _)))
 
       edge match {
 
-        case Some((e, (None, Some(prefix), None))) => {
+        case Some((e, (_, Some(prefix), None))) => {
           val newNode = e.node.put(key.substring(prefix.length), value)
           val newEdge = e.copy(node = newNode)
-          Branch(newEdge :: xs.filterNot(_ == e))
+          Branch(newEdge :: rootEdges.filterNot(_ == e))
         }
 
-        case Some((e, (Some(prefix), None, None))) => {
+        case Some((e, (Some(prefix), _, None))) => {
           e.node match {
             case leaf@Leaf(_) => {
               val newLabel = e.label.substring(prefix.length)
               val newEdge: Edge[B] = Edge(key, Branch(List(Edge(newLabel, leaf), Edge("", Leaf(value)))))
-              Branch(newEdge :: xs.filterNot(_ == e))
+              Branch(newEdge :: rootEdges.filterNot(_ == e))
             }
           }
         }
@@ -36,15 +36,21 @@ sealed trait RadixTree[+A] {
         case Some((e, (None, None, Some(prefix)))) => {
           e.node match {
             case leaf@Leaf(_) => {
-              val le = Edge(e.label.substring(prefix.length), Leaf(leaf.value))
+              val le = Edge(e.label.substring(prefix.length), leaf)
               val re = Edge(key.substring(prefix.length), Leaf(value))
               val newEdge: Edge[B] = Edge(prefix, Branch(List(le, re)))
-              Branch(newEdge :: xs.filterNot(_ == e))
+              Branch(newEdge :: rootEdges.filterNot(_ == e))
+            }
+            case Branch(childEdges) => {
+              val le = Edge(e.label.substring(prefix.length), Branch(childEdges))
+              val re = Edge(key.substring(prefix.length), Leaf(value))
+              val newEdge = Edge(prefix, Branch(List(le, re)))
+              Branch(newEdge :: rootEdges.filterNot(_ == e))
             }
           }
         }
 
-        case None => Branch(Edge(key, Leaf(value)) :: xs)
+        case None => Branch(Edge(key, Leaf(value)) :: rootEdges)
       }
     }
 
@@ -67,10 +73,11 @@ sealed trait RadixTree[+A] {
     case (true, Leaf(value)) => List(value)
     case (true, _) => values
     case (false, Branch(xs)) => {
-      val edge = xs.find(e => e.label.nonEmpty && (key startsWith e.label))
+      val edge = find(xs)(e => if (e.label.nonEmpty) commonPrefix(key, e.label).map((e, _)) else None)
       edge match {
-        case Some(e) => e.node.get(key.substring(e.label.length))
-        case None => List.empty
+        case Some((e, (None, Some(prefix), None))) => e.node.get(key.substring(prefix.length))
+        case Some((e, (Some(_), _, None))) => e.node.get("")
+        case _ => List.empty
       }
     }
     case _ => List.empty
@@ -113,6 +120,7 @@ object RadixTree {
         case (Some(_), Some(_)) if prefix.nonEmpty => Some((None, None, Some(prefix)))
         case (None, Some(_)) if prefix.nonEmpty => Some((Some(prefix), None, None))
         case (Some(_), None) if prefix.nonEmpty => Some((None, Some(prefix), None))
+        case (None, None) if prefix.nonEmpty => Some((Some(prefix), Some(prefix), None))
         case _ => None
       }
 
