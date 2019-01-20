@@ -1,6 +1,6 @@
 package pl.softech.collection
 
-import pl.softech.collection.RadixTree.{commonPrefix, find}
+import pl.softech.collection.RadixTree.{commonPrefix, find, replaceEdge, stripPrefix}
 
 import scala.annotation.tailrec
 
@@ -11,46 +11,32 @@ sealed trait RadixTree[+A] {
 
     case Branch(Nil) => Branch(List(Edge(key, Leaf(value))))
 
-    case Branch(rootEdges) => {
+    case Branch(edges) => {
 
-      val edge = find(rootEdges)(e => commonPrefix(key, e.label).map((e, _)))
+      val edge = find(edges)(e => commonPrefix(key, e.label).map((e, _)))
 
       edge match {
 
         case Some((e, (_, Some(prefix), None))) => {
-          val newNode = e.node.put(key.substring(prefix.length), value)
+          val newNode = e.node.put(stripPrefix(key, prefix), value)
           val newEdge = e.copy(node = newNode)
-          Branch(newEdge :: rootEdges.filterNot(_ == e))
+          Branch(replaceEdge[A, B](edges)(e -> newEdge))
         }
 
         case Some((e, (Some(prefix), _, None))) => {
-          e.node match {
-            case leaf@Leaf(_) => {
-              val newLabel = e.label.substring(prefix.length)
-              val newEdge: Edge[B] = Edge(key, Branch(List(Edge(newLabel, leaf), Edge("", Leaf(value)))))
-              Branch(newEdge :: rootEdges.filterNot(_ == e))
-            }
-          }
+          val newLabel = stripPrefix(e.label, prefix)
+          val newEdge = Edge(key, Branch(List(Edge(newLabel, e.node), Edge("", Leaf(value)))))
+          Branch(replaceEdge[A, B](edges)(e -> newEdge))
         }
 
         case Some((e, (None, None, Some(prefix)))) => {
-          e.node match {
-            case leaf@Leaf(_) => {
-              val le = Edge(e.label.substring(prefix.length), leaf)
-              val re = Edge(key.substring(prefix.length), Leaf(value))
-              val newEdge: Edge[B] = Edge(prefix, Branch(List(le, re)))
-              Branch(newEdge :: rootEdges.filterNot(_ == e))
-            }
-            case Branch(childEdges) => {
-              val le = Edge(e.label.substring(prefix.length), Branch(childEdges))
-              val re = Edge(key.substring(prefix.length), Leaf(value))
-              val newEdge = Edge(prefix, Branch(List(le, re)))
-              Branch(newEdge :: rootEdges.filterNot(_ == e))
-            }
-          }
+          val le = Edge(stripPrefix(e.label, prefix), e.node)
+          val re = Edge(stripPrefix(key, prefix), Leaf(value))
+          val newEdge = Edge(prefix, Branch(List(le, re)))
+          Branch(replaceEdge[A, B](edges)(e -> newEdge))
         }
 
-        case None => Branch(Edge(key, Leaf(value)) :: rootEdges)
+        case _ => Branch(Edge(key, Leaf(value)) :: edges)
       }
     }
 
@@ -69,13 +55,14 @@ sealed trait RadixTree[+A] {
     iter(List(self), List.empty)
   }
 
-  def get(key: String): List[A] = (key.isEmpty, self) match {
+  @tailrec
+  final def get(key: String): List[A] = (key.isEmpty, self) match {
     case (true, Leaf(value)) => List(value)
     case (true, _) => values
     case (false, Branch(xs)) => {
       val edge = find(xs)(e => if (e.label.nonEmpty) commonPrefix(key, e.label).map((e, _)) else None)
       edge match {
-        case Some((e, (None, Some(prefix), None))) => e.node.get(key.substring(prefix.length))
+        case Some((e, (None, Some(prefix), None))) => e.node.get(stripPrefix(key, prefix))
         case Some((e, (Some(_), _, None))) => e.node.get("")
         case _ => List.empty
       }
@@ -110,6 +97,13 @@ object RadixTree {
     }
     None
   }
+
+  def replaceEdge[A, B >: A](edges: List[Edge[A]])(replacement: (Edge[A], Edge[B])): List[Edge[B]] =
+    replacement match {
+      case (old, newOne) => newOne :: edges.filterNot(_ == old)
+    }
+
+  def stripPrefix(x: String, prefix: String): String = x.substring(prefix.length)
 
   def commonPrefix(x: String, y: String): Option[(Option[String], Option[String], Option[String])] = {
 
