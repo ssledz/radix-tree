@@ -41,6 +41,8 @@ sealed trait RadixTree[+A] {
     }
 
     case leaf@Leaf(_) if key.nonEmpty => Branch(List(Edge("", leaf), Edge(key, Leaf(value))))
+
+    case Leaf(_) => Leaf(value)
   }
 
   def values: List[A] = {
@@ -53,6 +55,20 @@ sealed trait RadixTree[+A] {
     }
 
     iter(List(self), List.empty)
+  }
+
+  @tailrec
+  final def startsWith(key: String): Boolean = (key.isEmpty, self) match {
+    case (true, _) => true
+    case (false, Branch(xs)) => {
+      val edge = find(xs)(e => if (e.label.nonEmpty) commonPrefix(key, e.label).map((e, _)) else None)
+      edge match {
+        case Some((e, (None, Some(prefix), None))) => e.node.startsWith(stripPrefix(key, prefix))
+        case Some((e, (Some(_), _, None))) => e.node.startsWith("")
+        case _ => false
+      }
+    }
+    case _ => false
   }
 
   @tailrec

@@ -15,12 +15,22 @@ class RadixTreeTest extends FunSuite {
     assert(commonPrefix("cute", "cute") === Some((Some("cute"), Some("cute"), None)))
   }
 
-  test("testPut") {
-
+  test("put") {
+    val trie = RadixTree[Int]()
+    assert(trie.put("cute", 1).get("cute") contains 1)
+    assert(trie.put("cute", 1).put("cute", 2).get("cute") contains 2)
+    assert(trie.put("", 2).get("") contains 2)
+    assert(trie.put("", 2).get("x") isEmpty)
   }
 
-  test("testGet") {
+  test("startsWith") {
+    assert(RadixTree.empty.startsWith(""))
+    assert(!RadixTree.empty.startsWith("cute"))
+    assert(RadixTree("int_one" -> 1).startsWith("int_"))
+    assert(!RadixTree("one" -> 1).startsWith("int_"))
+  }
 
+  test("get") {
     val trie = RadixTree("cute" -> 1, "nice" -> 2, "cuter" -> 3, "tester" -> 4, "test" -> 5, "team" -> 6)
     assert(trie.get("cute").sorted === List(1, 3))
     assert(trie.get("cuter") contains 3)
