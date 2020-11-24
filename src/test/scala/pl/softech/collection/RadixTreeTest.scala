@@ -30,6 +30,13 @@ class RadixTreeTest extends FunSuite {
     assert(!RadixTree("one" -> 1).startsWith("int_"))
   }
 
+  test("containsLeaf") {
+    val trie = RadixTree("moto.wp.pl" -> (), "sport.wp.pl" -> (), "onet.pl" -> ())
+    assert(trie.containsLeaf("wp.pl") === false)
+    assert(trie.containsLeaf("sport.wp.pl") === true)
+    assert(trie.containsLeaf("onet.pl") === true)
+  }
+
   test("get") {
     val trie = RadixTree("cute" -> 1, "nice" -> 2, "cuter" -> 3, "tester" -> 4, "test" -> 5, "team" -> 6)
     assert(trie.get("cute").sorted === List(1, 3))
