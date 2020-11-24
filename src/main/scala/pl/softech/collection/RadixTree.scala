@@ -31,24 +31,19 @@ sealed trait RadixTree[+A] {
     case Leaf(_) => Leaf(value)
   }
 
-  def values: List[A] = {
-    @tailrec
-    def iter(xs: List[RadixTree[A]], acc: List[A]): List[A] = xs match {
-      case Leaf(value) :: tail => iter(tail, value :: acc)
-      case Branch(es) :: tail => iter(es.map(_.node) ::: tail, acc)
-      case Nil => acc
-    }
-    iter(List(self), List.empty)
-  }
-
   def startsWith(key: String): Boolean = getValue(key)(false)(_ => true)
 
-  def get(key: String): List[A] = getValue(key)(List.empty[A]) {
+  def getPrefixed(prefix: String): List[A] = getValue(prefix)(List.empty[A]) {
     case Leaf(value) => List(value)
     case branch => branch.values
   }
 
-  def containsLeaf(key: String) : Boolean = getValue(key)(false) {
+  def get(key: String) : Option[A] = getValue(key)(None : Option[A]) {
+    case Leaf(value) => Some(value)
+    case _ => None
+  }
+
+  def contains(key: String) : Boolean = getValue(key)(false) {
     case Leaf(_) => true
     case _ => false
   }
@@ -65,6 +60,16 @@ sealed trait RadixTree[+A] {
       }
     }
     case _ => default
+  }
+
+  private def values: List[A] = {
+    @tailrec
+    def iter(xs: List[RadixTree[A]], acc: List[A]): List[A] = xs match {
+      case Leaf(value) :: tail => iter(tail, value :: acc)
+      case Branch(es) :: tail => iter(es.map(_.node) ::: tail, acc)
+      case Nil => acc
+    }
+    iter(List(self), List.empty)
   }
 
 }
@@ -87,7 +92,7 @@ object RadixTree {
 
   private def find[A, B](xs: List[A])(f: A => Option[B]): Option[B] = {
     var curr = xs
-    while (!curr.isEmpty) {
+    while (curr.nonEmpty) {
       f(curr.head) match {
         case v@Some(_) => return v
         case _ =>
@@ -105,7 +110,6 @@ object RadixTree {
   private def stripPrefix(x: String, prefix: String): String = x.substring(prefix.length)
 
   private[collection] def commonPrefix(x: String, y: String): Option[(Option[String], Option[String], Option[String])] = {
-
     @tailrec
     def go(x: String, y: String, prefix: String): Option[(Option[String], Option[String], Option[String])] =
       (x.headOption, y.headOption) match {
@@ -116,9 +120,7 @@ object RadixTree {
         case (None, None) if prefix.nonEmpty => Some((Some(prefix), Some(prefix), None))
         case _ => None
       }
-
     go(x, y, "")
-
   }
 
 }

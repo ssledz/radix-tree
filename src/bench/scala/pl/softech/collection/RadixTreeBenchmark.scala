@@ -30,7 +30,7 @@ object RadixTreeBenchmark extends Bench.LocalTime {
     val tree = RadixTree(tags.map(t => (t, t)): _*)
     measure method "get" in {
       using(gen) in { prefixes =>
-        prefixes.foreach(tree.get(_))
+        prefixes.foreach(tree.getPrefixed(_))
       }
     }
 

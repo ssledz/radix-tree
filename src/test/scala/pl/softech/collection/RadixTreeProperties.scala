@@ -10,8 +10,8 @@ object RadixTreeProperties extends Properties("RadixTree") {
       (a: String, b: String) =>
         (a != b && b.nonEmpty && a.nonEmpty) ==> {
           val tree = RadixTree((a + b) -> (a + b))
-          ("!tree.startsWith(b) == tree.get(b).isEmpty)" |: (!tree.startsWith(b) == tree.get(b).isEmpty)) &&
-            ("tree.startsWith(a) == tree.get(a).nonEmpty" |: (tree.startsWith(a) == tree.get(a).nonEmpty))
+          ("!tree.startsWith(b) == tree.get(b).isEmpty)" |: (!tree.startsWith(b) == tree.getPrefixed(b).isEmpty)) &&
+            ("tree.startsWith(a) == tree.get(a).nonEmpty" |: (tree.startsWith(a) == tree.getPrefixed(a).nonEmpty))
         }
     }
 
@@ -26,12 +26,12 @@ object RadixTreeProperties extends Properties("RadixTree") {
   }
 
   property("get for empty tree returns empty collection") = Prop.forAll { key: String =>
-    RadixTree.empty.get(key).isEmpty
+    RadixTree.empty.getPrefixed(key).isEmpty
   }
 
   property("get with empty string returns all elements") = Prop.forAll { (a: String, b: String, c: String) =>
     (a.nonEmpty && b.nonEmpty && c.nonEmpty) ==> {
-      val ret = RadixTree(a -> a, b -> b, c -> c).get("")
+      val ret = RadixTree(a -> a, b -> b, c -> c).getPrefixed("")
       ("ret contains a" |: (ret contains a)) &&
         ("ret contains b" |: (ret contains b)) &&
         ("ret contains c" |: (ret contains c))
