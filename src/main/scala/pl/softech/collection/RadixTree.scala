@@ -73,7 +73,9 @@ object RadixTree {
 
   def empty[A]: RadixTree[A] = Branch(List.empty)
 
-  def apply[A](xs: (String, A)*): RadixTree[A] = xs.foldLeft(empty[A]) {
+  def apply[A](xs: (String, A)*): RadixTree[A] = fromSeq(xs)
+
+  def fromSeq[A](xs: Seq[(String, A)]): RadixTree[A] = xs.foldLeft(empty[A]) {
     case (acc, (key, value)) => acc.put(key, value)
   }
 
